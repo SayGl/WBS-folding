@@ -10,22 +10,18 @@ namespace WBSummationCore
 {
     class ExcelWriter
     {
-        private string connectionString;
-        OleDbConnection MyConnection;
+        // добавить финализатор
+
+        private OleDbConnection session;
 
         public ExcelWriter(string path)
         {
             Dictionary<string, string> props = new Dictionary<string, string>();
 
-            // XLSX - Excel 2007, 2010, 2012, 2013Microsoft.ACE.OLEDB.14.0
-            props["Provider"] = "Microsoft.ACE.OLEDB.12.0;";
+            // XLSX - Excel 2007, 2010, 2012, 2013 Microsoft.ACE.OLEDB.14.0
+            props["Provider"] = "Microsoft.ACE.OLEDB.12.0";
             props["Extended Properties"] = "Excel 12.0 XML";
             props["Data Source"] = path;
-
-            // XLS - Excel 2003 and Older
-            //props["Provider"] = "Microsoft.Jet.OLEDB.4.0";
-            //props["Extended Properties"] = "Excel 8.0";
-            //props["Data Source"] = "C:\\MyExcel.xls";
 
             StringBuilder sb = new StringBuilder();
 
@@ -37,15 +33,14 @@ namespace WBSummationCore
                 sb.Append(';');
             }
 
-            connectionString = sb.ToString();
-            MyConnection = new OleDbConnection(connectionString);
-            MyConnection.Open();
+            session = new OleDbConnection(sb.ToString());
+            session.Open();                                                                                                                                                                 // Может кидать исключение если в системе нет Microsoft.ACE.OLEDB.12.0
         }
-        public void insertData(string code, string name, decimal cost)
+        public void insertData(string code, string name, decimal cost)                                                                                                                      // Переписать интерфейс подобно readColumns
         {
             OleDbCommand myCommand = new OleDbCommand();
-            myCommand.Connection = MyConnection;
-            myCommand.CommandText = string.Format("Insert into [Лист1$] (WBS, NAME, COST) values(\'{0}\',\'{1}\',\'{2}\')", code, name, Convert.ToString(cost));
+            myCommand.Connection = session;
+            myCommand.CommandText = string.Format("Insert into [Лист1$] (WBS, NAME, COST) values(\'{0}\',\'{1}\',\'{2}\')", code, name, Convert.ToString(cost));                             // Изменить если загружаем не в Лист1
             myCommand.ExecuteNonQuery();
         }
     }

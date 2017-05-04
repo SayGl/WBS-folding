@@ -10,7 +10,10 @@ namespace WBSummationCore
 {
     class ExcelReader
     {
-        private string connectionString;
+
+        // Добавить финализатор
+
+        private OleDbConnection session;
 
         public ExcelReader(string path)
         {
@@ -36,52 +39,48 @@ namespace WBSummationCore
                 sb.Append(';');
             }
 
-            connectionString = sb.ToString();
+            using (session = new OleDbConnection(sb.ToString())) ;
+            {
+                session.Open();
+            }
         }
 
         public List<List<String>> readColumns(int firstRow, string table_name, List<String> columns)
         {
             DataSet ds = new DataSet();
 
-            using (OleDbConnection conn = new OleDbConnection(connectionString))
+            OleDbCommand cmd = new OleDbCommand();
+            cmd.Connection = session;
+
+            // Get all Sheets in Excel File
+            DataTable dtSheet = session.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, null);
+
+            // Loop through all Sheets to get data
+            foreach (DataRow dr in dtSheet.Rows)
             {
-                conn.Open();
-                OleDbCommand cmd = new OleDbCommand();
-                cmd.Connection = conn;
+                string sheetName = dr["TABLE_NAME"].ToString();
 
-                // Get all Sheets in Excel File
-                DataTable dtSheet = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, null);
+                if (!sheetName.EndsWith("$"))
+                    continue;
 
-                // Loop through all Sheets to get data
-                foreach (DataRow dr in dtSheet.Rows)
-                {
-                    string sheetName = dr["TABLE_NAME"].ToString();
+                // Get all rows from the Sheet
+                cmd.CommandText = "SELECT * FROM [" + sheetName + "]";
 
-                    if (!sheetName.EndsWith("$"))
-                        continue;
+                DataTable dt = new DataTable();
+                dt.TableName = sheetName;
 
-                    // Get all rows from the Sheet
-                    cmd.CommandText = "SELECT * FROM [" + sheetName + "]";
+                OleDbDataAdapter da = new OleDbDataAdapter(cmd);
+                da.Fill(dt);
 
-                    DataTable dt = new DataTable();
-                    dt.TableName = sheetName;
-
-                    OleDbDataAdapter da = new OleDbDataAdapter(cmd);
-                    da.Fill(dt);
-
-                    ds.Tables.Add(dt);
-                }
-
-                cmd = null;
-                conn.Close();
+                ds.Tables.Add(dt);
             }
 
             List<List<String>> data = new List<List<string>>();
             for (int i = 0, j = firstRow; j < ds.Tables[table_name + "$"].Rows.Count; i++, j++)
             {
                 data.Add(new List<string>());
-                foreach(var column in columns){
-                    data[i].Add(ds.Tables[table_name + "$"].Rows[j][column].ToString().Trim());   
+                foreach (var column in columns) {
+                    data[i].Add(ds.Tables[table_name + "$"].Rows[j][column].ToString().Trim());
                 }
             }
             return data;
